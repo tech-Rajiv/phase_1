@@ -5,7 +5,7 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-export async function generationWithTool(question) {
+export async function generationWithTool(question, sendStatus, sendAnswer) {
   const toolsFunctions = {
     searchWeb: searchWeb,
   };
@@ -36,6 +36,7 @@ export async function generationWithTool(question) {
   ];
   const maxToolCalls = 2;
   let toolCallsCount = 0;
+  sendStatus("thinking");
   while (toolCallsCount < maxToolCalls) {
     const response = await groq.chat.completions.create({
       model: "openai/gpt-oss-20b",
@@ -45,8 +46,10 @@ export async function generationWithTool(question) {
     const message = response.choices[0].message;
     console.log("message", message);
     if (!message.tool_calls) {
+      sendStatus("generating");
       console.log("message concluded and groq doesnot want to call any tools");
-      return message.content;
+      // return message.content;
+      break;
     }
 
     const toolCalls = message.tool_calls;
@@ -54,6 +57,9 @@ export async function generationWithTool(question) {
     console.log("message from AI in loop to itself", message);
     for (const toolCall of toolCalls) {
       const toolName = toolCall.function.name;
+      if (toolName === "searchWeb") {
+        sendStatus("searching");
+      }
       const toolArgs = JSON.parse(toolCall.function.arguments);
       const toolResult = await toolsFunctions[toolName](toolArgs);
       messages.push({
@@ -62,6 +68,9 @@ export async function generationWithTool(question) {
         name: toolName,
         content: JSON.stringify(toolResult),
       });
+      if (toolName === "searchWeb") {
+        sendStatus("search_complete");
+      }
       // this is important and where you place is also important
       toolCallsCount++;
       console.log("toolCallsCount increased to", toolCallsCount);
@@ -71,7 +80,7 @@ export async function generationWithTool(question) {
   console.log(
     "loop ended but answer is not ready yet - so will call groq again to get the final answer",
   );
-
+  sendStatus("generating");
   messages.push({
     role: "user",
     content:
@@ -81,8 +90,16 @@ export async function generationWithTool(question) {
     model: "openai/gpt-oss-20b",
     messages,
     tool_choice: "none",
+    stream: true,
   });
-  console.log("finalResponse got");
 
-  return finalResponse.choices[0].message.content;
+  console.log("finalResponse stream started");
+
+  for await (const chunk of finalResponse) {
+    const content = chunk.choices[0]?.delta?.content;
+
+    if (content) {
+      sendAnswer(content);
+    }
+  }
 }

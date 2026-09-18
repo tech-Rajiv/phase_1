@@ -8,6 +8,7 @@ function ToolCalling() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
   const [error, setError] = useState(null);
 
   const handleCallTool = async () => {
@@ -24,14 +25,48 @@ function ToolCalling() {
         body: JSON.stringify({ question }),
       });
 
-      const data = await response.json();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
 
-      setAnswer(data?.data || "");
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, {
+          stream: true,
+        });
+
+        const lines = buffer.split("\n");
+
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          const data = JSON.parse(line);
+
+          if (data.type === "status") {
+            console.log("STATUS:", data.status);
+            setStatus(data.status);
+          }
+          if (data.type === "answer") {
+            setAnswer((prev) => prev + data.content);
+          }
+
+          if (data.type === "error") {
+            setError(data.message);
+          }
+        }
+      }
     } catch (error) {
       console.log("error", error);
       setError(error.message);
     } finally {
       setLoading(false);
+      setStatus("");
     }
   };
 
@@ -54,14 +89,21 @@ function ToolCalling() {
       >
         Call Tool
       </button>
+      <div className="w-full max-w-5xl my-4 prose">
+        {status === "thinking" && <div>🧠 Thinking...</div>}
 
-      {loading ? (
-        <div className="font-medium w-full text-center my-4">Searching...</div>
-      ) : (
-        <div className="w-full max-w-5xl my-4 prose">
+        {status === "searching" && <div>🔎 Searching the web...</div>}
+
+        {status === "search_complete" && (
+          <div>📚 Reading search results...</div>
+        )}
+
+        {status === "generating" && <div>✍️ Generating answer...</div>}
+
+        {answer && (
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
