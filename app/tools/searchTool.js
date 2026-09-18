@@ -1,23 +1,22 @@
 export const searchWebTool = {
-  functionDeclarations: [
-    {
-      name: "searchWeb",
-      description: "Search the web for current or up-to-date information.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "The search query to search on the web.",
-          },
+  type: "function",
+  function: {
+    name: "searchWeb",
+    description: "Search the internet for current or up-to-date information.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "The search query",
         },
-        required: ["query"],
       },
+      required: ["query"],
     },
-  ],
+  },
 };
 
-export const searchWeb = async (query) => {
+export const searchWeb = async ({ query }) => {
   const response = await fetch("https://api.tavily.com/search", {
     method: "POST",
     headers: {
@@ -31,7 +30,9 @@ export const searchWeb = async (query) => {
   });
 
   if (!response.ok) {
-    throw new Error(`Tavily search failed: ${response.status}`);
+    const error = await response.text();
+
+    throw new Error(`Tavily search failed: ${response.status} - ${error}`);
   }
 
   const data = await response.json();
