@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import { searchWebTool, searchWeb } from "../tools/searchTool";
+import { getWeather, weatherTool } from "../tools/weatherTool";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
@@ -8,8 +9,9 @@ const groq = new Groq({
 export async function generationWithTool(question, sendStatus, sendAnswer) {
   const toolsFunctions = {
     searchWeb: searchWeb,
+    getWeather: getWeather,
   };
-  const tools = [searchWebTool];
+  const tools = [searchWebTool, weatherTool];
   const messages = [
     {
       role: "system",
@@ -42,10 +44,11 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
       model: "openai/gpt-oss-20b",
       messages,
       tools,
+      include_reasoning: false,
     });
     const message = response.choices[0].message;
     console.log("message", message);
-    if (!message.tool_calls) {
+    if (!message.tool_calls?.length) {
       sendStatus("generating");
       console.log("message concluded and groq doesnot want to call any tools");
       // return message.content;
@@ -60,6 +63,9 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
       if (toolName === "searchWeb") {
         sendStatus("searching");
       }
+      if (toolName === "getWeather") {
+        sendStatus("getting_weather_reports");
+      }
       const toolArgs = JSON.parse(toolCall.function.arguments);
       const toolResult = await toolsFunctions[toolName](toolArgs);
       messages.push({
@@ -71,15 +77,16 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
       if (toolName === "searchWeb") {
         sendStatus("search_complete");
       }
+      if (toolName === "getWeather") {
+        sendStatus("weather_reports_complete");
+      }
       // this is important and where you place is also important
       toolCallsCount++;
       console.log("toolCallsCount increased to", toolCallsCount);
     }
   }
 
-  console.log(
-    "loop ended but answer is not ready yet - so will call groq again to get the final answer",
-  );
+  console.log("loop ended ready to generate final answer");
   sendStatus("generating");
   messages.push({
     role: "user",
@@ -90,6 +97,8 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
     model: "openai/gpt-oss-20b",
     messages,
     tool_choice: "none",
+    reasoning_effort: "low",
+    include_reasoning: false,
     stream: true,
   });
 

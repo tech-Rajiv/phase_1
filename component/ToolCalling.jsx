@@ -97,6 +97,12 @@ function ToolCalling() {
         {status === "search_complete" && (
           <div>📚 Reading search results...</div>
         )}
+        {status === "getting_weather_reports" && (
+          <div>🌤️ Getting weather reports...</div>
+        )}
+        {status === "weather_reports_complete" && (
+          <div>📊 Weather reports complete...</div>
+        )}
 
         {status === "generating" && <div>✍️ Generating answer...</div>}
 

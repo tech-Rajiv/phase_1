@@ -2,7 +2,8 @@ export const searchWebTool = {
   type: "function",
   function: {
     name: "searchWeb",
-    description: "Search the internet for current or up-to-date information.",
+    description:
+      "Search the internet for general current or up-to-date information. Do not use this tool for current weather because a dedicated weather tool is available.",
     parameters: {
       type: "object",
       properties: {
