@@ -1,0 +1,40 @@
+export const searchWebTool = {
+  functionDeclarations: [
+    {
+      name: "searchWeb",
+      description: "Search the web for current or up-to-date information.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: {
+            type: "string",
+            description: "The search query to search on the web.",
+          },
+        },
+        required: ["query"],
+      },
+    },
+  ],
+};
+
+export const searchWeb = async (query) => {
+  const response = await fetch("https://api.tavily.com/search", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      api_key: process.env.TAVILY_API_KEY,
+      query: query,
+      max_results: 3,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Tavily search failed: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  return data.results;
+};
