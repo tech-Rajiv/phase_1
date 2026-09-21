@@ -6,6 +6,7 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
+const memory = [];
 export async function generationWithTool(question, sendStatus, sendAnswer) {
   const toolsFunctions = {
     searchWeb: searchWeb,
@@ -31,6 +32,7 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
   - Do not force formatting when a simple paragraph is sufficient.
   `,
     },
+    ...memory,
     {
       role: "user",
       content: question,
@@ -44,8 +46,8 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
       model: "openai/gpt-oss-20b",
       messages,
       tools,
-      include_reasoning: false,
     });
+    console.log("response raw of groq", response);
     const message = response.choices[0].message;
     console.log("message", message);
     if (!message.tool_calls?.length) {
@@ -66,8 +68,16 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
       if (toolName === "getWeather") {
         sendStatus("getting_weather_reports");
       }
+      const toolStart = Date.now();
       const toolArgs = JSON.parse(toolCall.function.arguments);
       const toolResult = await toolsFunctions[toolName](toolArgs);
+      console.log("⏱️ Tool execution:", Date.now() - toolStart, "ms");
+
+      console.log(
+        "📦 Tool result size:",
+        JSON.stringify(toolResult).length,
+        "characters",
+      );
       messages.push({
         role: "tool",
         tool_call_id: toolCall.id,
@@ -80,6 +90,7 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
       if (toolName === "getWeather") {
         sendStatus("weather_reports_complete");
       }
+      // console.log("toolResult---- after tool call", toolResult);
       // this is important and where you place is also important
       toolCallsCount++;
       console.log("toolCallsCount increased to", toolCallsCount);
@@ -93,6 +104,15 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
     content:
       "Please provide the final answer based on the information provided.",
   });
+  console.log("🚀 Starting final Groq request");
+
+  const finalStart = Date.now();
+  console.log(
+    "📨 Final prompt size:",
+    JSON.stringify(messages).length,
+    "characters",
+  );
+  let finalMessages = "";
   const finalResponse = await groq.chat.completions.create({
     model: "openai/gpt-oss-20b",
     messages,
@@ -101,6 +121,13 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
     include_reasoning: false,
     stream: true,
   });
+  console.log(
+    "⚡ Groq stream connection established:",
+    Date.now() - finalStart,
+    "ms",
+  );
+
+  let firstToken = true;
 
   console.log("finalResponse stream started");
 
@@ -108,7 +135,22 @@ export async function generationWithTool(question, sendStatus, sendAnswer) {
     const content = chunk.choices[0]?.delta?.content;
 
     if (content) {
+      finalMessages += content;
+      if (firstToken) {
+        console.log("🔥 FIRST TOKEN:", Date.now() - finalStart, "ms");
+
+        firstToken = false;
+      }
+
       sendAnswer(content);
     }
   }
+  memory.push({
+    role: "user",
+    content: question,
+  });
+  memory.push({
+    role: "assistant",
+    content: finalMessages,
+  });
 }
