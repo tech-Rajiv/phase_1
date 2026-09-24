@@ -17,7 +17,7 @@ function ToolCalling() {
     setAnswer("");
 
     try {
-      const response = await fetch("/api/ask-tool", {
+      const response = await fetch("/api/ask-lang", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -25,42 +25,9 @@ function ToolCalling() {
         body: JSON.stringify({ question }),
       });
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) break;
-
-        buffer += decoder.decode(value, {
-          stream: true,
-        });
-
-        const lines = buffer.split("\n");
-
-        buffer = lines.pop();
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-
-          const data = JSON.parse(line);
-
-          if (data.type === "status") {
-            console.log("STATUS:", data.status);
-            setStatus(data.status);
-          }
-          if (data.type === "answer") {
-            setAnswer((prev) => prev + data.content);
-          }
-
-          if (data.type === "error") {
-            setError(data.message);
-          }
-        }
-      }
+      const { data } = await response.json();
+      console.log("data", data);
+      setAnswer(data);
     } catch (error) {
       console.log("error", error);
       setError(error.message);
@@ -90,7 +57,7 @@ function ToolCalling() {
         Call Tool
       </button>
       <div className="w-full max-w-5xl my-4 prose">
-        {status === "thinking" && <div>🧠 Thinking...</div>}
+        {/* {status === "thinking" && <div>🧠 Thinking...</div>}
 
         {status === "searching" && <div>🔎 Searching the web...</div>}
 
@@ -104,10 +71,11 @@ function ToolCalling() {
           <div>📊 Weather reports complete...</div>
         )}
 
-        {status === "generating" && <div>✍️ Generating answer...</div>}
+        {status === "generating" && <div>✍️ Generating answer...</div>} */}
 
         {answer && (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
+          // <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
+          <div>{answer}</div>
         )}
       </div>
     </div>
