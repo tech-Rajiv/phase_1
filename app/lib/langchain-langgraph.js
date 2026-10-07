@@ -8,6 +8,7 @@ import {
 } from "@langchain/langgraph";
 import { weatherTool } from "../tools/weatherTool";
 import { searchWebTool } from "../tools/searchTool";
+import { sendEmailTool } from "../tools/sendEmail";
 
 const threadId = "conv-1";
 const model = new ChatGroq({
@@ -15,7 +16,7 @@ const model = new ChatGroq({
   temperature: 0,
 });
 
-const tools = [weatherTool, searchWebTool];
+const tools = [weatherTool, searchWebTool, sendEmailTool];
 
 const modelWithTools = model.bindTools(tools);
 
